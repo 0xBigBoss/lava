@@ -542,6 +542,7 @@ func Server(
 
 	//
 	// Start newSentry
+	g_serverID = uint64(rand.Int63())
 	newSentry := sentry.NewSentry(clientCtx, ChainID, false, askForRewards, apiInterface, nil, nil, g_serverID)
 	err := newSentry.Init(ctx)
 	if err != nil {
