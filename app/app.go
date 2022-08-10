@@ -85,6 +85,7 @@ import (
 	"github.com/ignite-hq/cli/ignite/pkg/cosmoscmd"
 	"github.com/ignite-hq/cli/ignite/pkg/openapiconsole"
 	"github.com/lavanet/lava/app/upgrades"
+	v2 "github.com/lavanet/lava/app/upgrades/v2"
 	"github.com/lavanet/lava/docs"
 	conflictmodule "github.com/lavanet/lava/x/conflict"
 	conflictmodulekeeper "github.com/lavanet/lava/x/conflict/keeper"
@@ -116,7 +117,7 @@ const (
 
 var (
 	// add here future upgrades (upgrades.Upgrade)
-	Upgrades = []upgrades.Upgrade{}
+	Upgrades = []upgrades.Upgrade{v2.Upgrade}
 )
 
 // this line is used by starport scaffolding # stargate/wasm/app/enabledProposals

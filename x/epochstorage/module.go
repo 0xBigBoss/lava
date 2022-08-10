@@ -171,7 +171,7 @@ func (am AppModule) BeginBlock(ctx sdk.Context, _ abci.RequestBeginBlock) {
 
 	details_test := map[string]string{"height": fmt.Sprintf("%d", ctx.BlockHeight())}
 	logger_test := am.keeper.Logger(ctx)
-	utils.LogLavaEvent(ctx, logger_test, "new_block", details_test, "New Block Stated: PRE_CHANGES")
+	utils.LogLavaEvent(ctx, logger_test, "new_block", details_test, "New Block Stated: POST_CHANGES")
 	if am.keeper.IsEpochStart(ctx) {
 
 		block := uint64(ctx.BlockHeight())
