@@ -475,6 +475,22 @@ func (s *Sentry) getSpec(ctx context.Context) error {
 	return nil
 }
 
+func (s *Sentry) Reset(ctx context.Context) error {
+	err := s.rpcClient.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	for {
+		if !s.rpcClient.IsRunning() {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return nil
+}
+
 func (s *Sentry) Init(ctx context.Context) error {
 	//
 	// New client

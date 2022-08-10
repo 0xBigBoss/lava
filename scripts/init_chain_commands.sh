@@ -17,6 +17,14 @@ lavad tx pairing stake-client "FTM250" 200000ulava 1 -y --from user3
 lavad tx pairing stake-client "LAV1" 200000ulava 1 -y --from user4
 lavad tx pairing stake-client "COS4" 200000ulava 1 -y --from user2
 
+# Adding one user for all
+lavad tx pairing stake-client "ETH1" 200000ulava 1 -y --from user5
+lavad tx pairing stake-client "GTH1" 200000ulava 1 -y --from user5
+lavad tx pairing stake-client "COS3" 200000ulava 1 -y --from user5
+lavad tx pairing stake-client "FTM250" 200000ulava 1 -y --from user5
+lavad tx pairing stake-client "LAV1" 200000ulava 1 -y --from user5
+lavad tx pairing stake-client "COS4" 200000ulava 1 -y --from user5
+
 # Ethereum providers
 lavad tx pairing stake-provider "ETH1" 2010ulava "127.0.0.1:2221,jsonrpc,1" 1 -y --from servicer1
 lavad tx pairing stake-provider "ETH1" 2000ulava "127.0.0.1:2222,jsonrpc,1" 1 -y --from servicer2

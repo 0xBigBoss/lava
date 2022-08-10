@@ -3,6 +3,7 @@ package testclients
 import (
 	"bytes"
 	"log"
+	"strings"
 
 	"github.com/lavanet/lava/x/pairing/types"
 )
@@ -24,6 +25,12 @@ const (
 	URIRPC_TERRA_STATUS           = `status?`
 	URIRPC_TERRA_HEALTH           = `health`
 )
+
+func PrintStatusNoticable(status string) {
+	length := len(status)
+	pluses := strings.Repeat("+", length)
+	log.Printf("\n" + pluses + "\n\n" + status + "\n\n" + pluses + "\n")
+}
 
 func prettyPrintReply(reply types.RelayReply, name string) {
 	reply.Sig = nil // for nicer prints

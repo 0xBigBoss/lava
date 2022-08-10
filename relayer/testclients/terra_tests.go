@@ -12,6 +12,7 @@ import (
 )
 
 func TerraTests(ctx context.Context, chainProxy chainproxy.ChainProxy, privKey *btcec.PrivateKey, apiInterface string) error {
+	PrintStatusNoticable("Statring TerraTests")
 	errors := []string{}
 	if apiInterface == "rest" {
 		for i := 0; i < 10; i++ {

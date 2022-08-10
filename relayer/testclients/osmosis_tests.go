@@ -12,6 +12,7 @@ import (
 )
 
 func OsmosisTests(ctx context.Context, chainProxy chainproxy.ChainProxy, privKey *btcec.PrivateKey, apiInterface string) error {
+	PrintStatusNoticable("Starting OsmosisTests")
 	errors := []string{}
 	if apiInterface == "rest" {
 		// most important api test

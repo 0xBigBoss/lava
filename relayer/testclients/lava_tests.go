@@ -15,6 +15,7 @@ import (
 
 // LavaTests
 func LavaTests(ctx context.Context, chainProxy chainproxy.ChainProxy, privKey *btcec.PrivateKey, apiInterface string, s *sentry.Sentry, clientCtx client.Context) error {
+	PrintStatusNoticable("Starting LavaTests")
 	errors := []string{}
 	if apiInterface == "rest" {
 

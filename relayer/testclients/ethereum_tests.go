@@ -12,7 +12,7 @@ import (
 
 func EthTests(ctx context.Context, chainProxy chainproxy.ChainProxy, privKey *btcec.PrivateKey) error {
 	errors := []string{}
-	fmt.Println("starting Eth Tests")
+	PrintStatusNoticable("Starting EthTests")
 
 	for _, ethApi := range ethApis {
 		reply, err := chainproxy.SendRelay(ctx, chainProxy, privKey, "", ethApi.req, "")
