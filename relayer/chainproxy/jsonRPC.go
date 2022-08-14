@@ -162,6 +162,7 @@ func (cp *JrpcChainProxy) ParseMsg(path string, data []byte, connectionType stri
 	// connectionType is currently only used in rest API.
 	// Unmarshal request
 	var msg JsonrpcMessage
+
 	err := json.Unmarshal(data, &msg)
 	if err != nil {
 		return nil, err
@@ -250,7 +251,7 @@ func (cp *JrpcChainProxy) PortalStart(ctx context.Context, privKey *btcec.Privat
 		}
 	}))
 
-	app.Post("/:dappId", func(c *fiber.Ctx) error {
+	app.Post("/:dappId/*", func(c *fiber.Ctx) error {
 		log.Println("in <<< ", string(c.Body()))
 		reply, err := SendRelay(ctx, cp, privKey, "", string(c.Body()), "")
 		if err != nil {

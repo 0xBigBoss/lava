@@ -231,12 +231,12 @@ func (cp *tendermintRpcChainProxy) PortalStart(ctx context.Context, privKey *btc
 		}
 	}))
 
-	app.Post("/:dappId", func(c *fiber.Ctx) error {
+	app.Post("/:dappId/*", func(c *fiber.Ctx) error {
 		log.Println("jsonrpc in <<< ", string(c.Body()))
 		reply, err := SendRelay(ctx, cp, privKey, "", string(c.Body()), "")
 		if err != nil {
 			log.Println(err)
-			return nil
+			return c.SendString(fmt.Sprintf(`{"error": "unsupported api","more_information" %s}`, err))
 		}
 
 		log.Println("out >>> ", string(reply.Data))
