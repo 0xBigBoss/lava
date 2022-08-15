@@ -7,27 +7,67 @@ package chainproxy
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
+	"net/url"
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/lavanet/lava/relayer/chainproxy/clients"
+	"github.com/tendermint/tendermint/rpc/jsonrpc/client"
 )
+
+type Client interface {
+	Close()
+	Call(ctx context.Context, result *json.RawMessage, method string, params interface{}) (interface{}, error)
+	ClientType() string
+	GetResponse() (json.RawMessage, error)
+}
 
 type Connector struct {
 	lock        sync.Mutex
-	freeClients []*rpc.Client
+	freeClients []Client
 	usedClients int
+}
+
+func getClient(ctx context.Context, addr string) (Client, error) {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return nil, err
+	}
+	switch u.Scheme {
+	case "http", "https":
+		c, err := client.New(addr)
+		if err != nil {
+			return nil, err
+		}
+		return &clients.HTTPClient{Client: c}, nil
+		// TODO support URI client from address.
+	case "ws", "wss":
+		c, err := client.NewWS(addr, "") // might need to change websocket
+		if err != nil {
+			return nil, err
+		}
+		return &clients.WebSocketClient{WSClient: c}, nil
+	case "stdio":
+		return nil, fmt.Errorf("unsupported scheme: %q", u.Scheme)
+	case "":
+		return nil, fmt.Errorf("unsupported scheme: %q", u.Scheme)
+	default:
+		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
+	}
+
 }
 
 func NewConnector(ctx context.Context, nConns uint, addr string) *Connector {
 	connector := &Connector{
-		freeClients: make([]*rpc.Client, 0, nConns),
+		freeClients: make([]Client, 0, nConns),
 	}
 
 	for i := uint(0); i < nConns; i++ {
-		var rpcClient *rpc.Client
+		var rpcClient Client
 		var err error
 		for {
 			if ctx.Err() != nil {
@@ -35,7 +75,7 @@ func NewConnector(ctx context.Context, nConns uint, addr string) *Connector {
 				return nil
 			}
 			nctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
-			rpcClient, err = rpc.DialContext(nctx, addr)
+			rpcClient, err = getClient(nctx, addr)
 			if err != nil {
 				log.Println("retrying", err)
 				cancel()
@@ -64,7 +104,7 @@ func (connector *Connector) Close() {
 		for i := 0; i < len(connector.freeClients); i++ {
 			connector.freeClients[i].Close()
 		}
-		connector.freeClients = []*rpc.Client{}
+		connector.freeClients = make([]Client, 0) // removing all clients.
 
 		if connector.usedClients > 0 {
 			log.Println("Connector closing, waiting for in use clients", connector.usedClients)
@@ -77,7 +117,7 @@ func (connector *Connector) Close() {
 	}
 }
 
-func (connector *Connector) GetRpc(block bool) (*rpc.Client, error) {
+func (connector *Connector) GetRpc(block bool) (Client, error) {
 	connector.lock.Lock()
 	defer connector.lock.Unlock()
 	countPrint := 0
@@ -107,7 +147,7 @@ func (connector *Connector) GetRpc(block bool) (*rpc.Client, error) {
 	return ret, nil
 }
 
-func (connector *Connector) ReturnRpc(rpc *rpc.Client) {
+func (connector *Connector) ReturnRpc(rpc Client) {
 	connector.lock.Lock()
 	defer connector.lock.Unlock()
 
