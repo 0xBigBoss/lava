@@ -14,9 +14,11 @@ import (
 var mockFolder string = "testutil/e2e/proxy/mockMaps/"
 
 var responsesChanged bool = false
+var total int = 0
 var realCount int = 0
 var cacheCount int = 0
 var fakeCount int = 0
+var intercepted int = 0
 
 var fakeResponse bool = false
 
@@ -26,16 +28,18 @@ var epochCount int = 0     // starting epoch count
 var proxies []proxyProcess = []proxyProcess{}
 
 type proxyProcess struct {
-	id        string
-	port      string
-	host      string
-	mockfile  string
-	mock      *mockMap
-	handler   func(http.ResponseWriter, *http.Request)
-	malicious bool
-	cache     bool
-	strict    bool
-	noSave    bool
+	id           string
+	port         string
+	host         string
+	mockfile     string
+	mock         *mockMap
+	handler      func(http.ResponseWriter, *http.Request)
+	malicious    bool
+	cache        bool
+	strict       bool
+	noSave       bool
+	latency      uint
+	availability float64
 }
 
 type jsonStruct struct {
@@ -66,6 +70,8 @@ func main() {
 		"(from default [host].json unless -alt was set)\nUsage Example:\n	$ go run proxy.go http://google.com/ -cache")
 	alt := flag.String("alt", "", "ALT (optional) [JSONFILE] - This will make proxy return from alternative cache file if possible"+
 		"\nUsage Example:\n	$ go run proxy.go http://google.com/ -cache -alt ./mockMaps/google_alt.json		# respond from google_alt.json")
+	latency := flag.Uint("latency", 0, "min latency of the proxy answer")
+	availability := flag.Float64("availability", 100, "availability in /%/ of the proxy answer")
 	strict := flag.Bool("strict", false, "STRICT (optional) - This will make proxy return ONLY from cache, no external calls")
 	help := flag.Bool("h", false, "Shows this help message")
 	noSave := flag.Bool("no-save", false, "NO-SAVE (optional) will not store any data from proxy")
@@ -88,6 +94,7 @@ func main() {
 	}
 	println()
 
+	fmt.Printf("YAROM !!!!!!!!!!! LATENCY IS %d", *latency)
 	domain := getDomain(*host)
 	if *id != "" {
 		domain = *id
@@ -109,15 +116,17 @@ func main() {
 	startEpochUpdate(noSave)
 
 	process := proxyProcess{
-		id:        domain,
-		port:      *port,
-		host:      *host,
-		mockfile:  mockfile,
-		mock:      &mockMap{requests: map[string]string{}},
-		malicious: false,
-		cache:     *cache,
-		strict:    *strict,
-		noSave:    *noSave,
+		id:           domain,
+		port:         *port,
+		host:         *host,
+		mockfile:     mockfile,
+		mock:         &mockMap{requests: map[string]string{}},
+		malicious:    false,
+		cache:        *cache,
+		strict:       *strict,
+		noSave:       *noSave,
+		latency:      *latency,
+		availability: *availability,
 	}
 	current = &process
 	proxies = append(proxies, process)
@@ -245,9 +254,7 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 				println(p.port+" ::: Fake Response ::: ", val)
 				fakeCount += 1
 			}
-			time.Sleep(500 * time.Millisecond)
-			rw.WriteHeader(200)
-			rw.Write([]byte(val))
+			p.returnResponse(rw, 200, []byte(val))
 
 		} else {
 			// Recreating Request
@@ -323,8 +330,8 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 				if respBody == nil {
 					respBody = []byte("error")
 				}
-				// time.Sleep(500 * time.Millisecond)
-				returnResponse(rw, status, respBody)
+
+				p.returnResponse(rw, status, respBody)
 			}
 		}
 	}
@@ -335,4 +342,17 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 		}
 		fmt.Println("_________________________________", realCount, "/", cacheCount, ": proxy sent (new/from cache)", id, "\n")
 	}
+}
+
+func (p proxyProcess) returnResponse(rw http.ResponseWriter, status int, body []byte) {
+	time.Sleep(time.Duration(p.latency) * time.Millisecond)
+
+	if float64(intercepted)/float64(total) > (1 - p.availability) {
+		rw.WriteHeader(status)
+		rw.Write(body)
+	} else {
+		intercepted++
+	}
+
+	total++
 }

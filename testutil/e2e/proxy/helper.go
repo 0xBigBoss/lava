@@ -82,8 +82,3 @@ func getDataFromIORead(feed *io.ReadCloser, reset bool) (rawBody []byte) {
 
 	return rawBody
 }
-
-func returnResponse(rw http.ResponseWriter, status int, body []byte) {
-	rw.WriteHeader(status)
-	rw.Write(body)
-}
