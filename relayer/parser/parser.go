@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -121,9 +122,11 @@ func GetDataToParse(rpcInput RPCInput, dataSource int) ([]interface{}, error) {
 	case PARSE_PARAMS:
 		return rpcInput.GetParams(), nil
 	case PARSE_RESULT:
+		log.Println("Parse Result")
 		interfaceArr := []interface{}{}
 		var data map[string]interface{}
 		unmarshalled := rpcInput.GetResult()
+		log.Println("unmarshaled:", string(unmarshalled))
 
 		// Try to unmarshal and if the data is unmarshalable then return the data itself
 		err := json.Unmarshal(unmarshalled, &data)

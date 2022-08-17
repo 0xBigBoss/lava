@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/tendermint/tendermint/rpc/jsonrpc/client"
 )
@@ -26,11 +27,13 @@ func (h *HTTPClient) ClientType() string {
 
 func (h *HTTPClient) Call(ctx context.Context, result *json.RawMessage, method string, params interface{}) (interface{}, error) {
 	var paramsFinal map[string]interface{}
+	log.Println("params:", params, "method:", method)
 	switch p := params.(type) {
 	case []interface{}:
 		log.Println("got http interface list:", p)
-		paramsFinal = map[string]interface{}{
-			"arg": p, // couldnt find other way to trigger []interface{} params
+		var paramsFinal = make(map[string]interface{}, len(p))
+		for idx, v := range p {
+			paramsFinal[strconv.Itoa(idx)] = v
 		}
 	case map[string]interface{}:
 		log.Println("got http map:", p)
@@ -38,5 +41,8 @@ func (h *HTTPClient) Call(ctx context.Context, result *json.RawMessage, method s
 	default:
 		return nil, fmt.Errorf("unknown type %v", p)
 	}
-	return h.Client.Call(ctx, method, paramsFinal, result)
+	log.Println("call started")
+	ret, err := h.Client.Call(ctx, method, paramsFinal, result)
+	log.Println(fmt.Sprintf("res: %s, err: %s", ret, err))
+	return ret, err
 }

@@ -139,6 +139,7 @@ func (cp *JrpcChainProxy) GetSentry() *sentry.Sentry {
 }
 
 func (cp *JrpcChainProxy) Start(ctx context.Context) error {
+	log.Println("STARTING JrpcChainProxy")
 	cp.conn = NewConnector(ctx, cp.nConns, cp.nodeUrl)
 	if cp.conn == nil {
 		return errors.New("g_conn == nil")
@@ -295,6 +296,7 @@ func (nm *JrpcMessage) Send(ctx context.Context) (*pairingtypes.RelayReply, erro
 	var responseUnmarsheled interface{}
 	connectCtx, cancel := context.WithTimeout(ctx, DefaultTimeout)
 	defer cancel()
+	// Calling the right client using the Client interface in connector.
 	responseUnmarsheled, err = rpc.Call(connectCtx, &result, nm.msg.Method, nm.msg.Params)
 
 	if err != nil {
@@ -308,13 +310,13 @@ func (nm *JrpcMessage) Send(ctx context.Context) (*pairingtypes.RelayReply, erro
 	case "HTTPClient":
 		log.Printf("HTTPClient results")
 		data, err = json.Marshal(responseUnmarsheled)
+		if err != nil {
+			// if marshaling the response interface failed, try to marshal the result directly
+			data, err = json.Marshal(result)
+		}
 	case "WebSocketClient":
 		log.Printf("WebSocketClient results")
-		msg := <-rpc.ResponsesCh
-		if msg.Error != nil {
-			return "", err
-
-		}
+		data, err = rpc.GetResponse()
 	case "URIClient":
 		log.Printf("URIClient results")
 	}
@@ -324,31 +326,7 @@ func (nm *JrpcMessage) Send(ctx context.Context) (*pairingtypes.RelayReply, erro
 		nm.msg.Result = []byte(fmt.Sprintf("%s", err))
 		return nil, err
 	}
-	// //
-	// // Wrap result back to json
-	// replyMsg := JsonrpcMessage{
-	// 	Version: nm.msg.Version,
-	// 	ID:      nm.msg.ID,
-	// }
-	// if err != nil {
-	// 	//
-	// 	// TODO: CallContext is limited, it does not give us the source
-	// 	// of the error or the error code if json (we need smarter error handling)
-	// 	replyMsg.Error = &jsonError{
-	// 		Code:    1, // TODO
-	// 		Message: fmt.Sprintf("%s", err),
-	// 	}
-	// 	nm.msg.Result = []byte(fmt.Sprintf("%s", err))
-	// 	return nil, err
-	// } else {
-	// 	replyMsg.Result = result
-	// 	nm.msg.Result = result
-	// }
 
-	// data, err := json.Marshal(replyMsg)
-	// if err != nil {
-	// 	return nil, err
-	// }
 	reply := &pairingtypes.RelayReply{
 		Data: data,
 	}

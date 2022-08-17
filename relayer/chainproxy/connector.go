@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -32,13 +33,34 @@ type Connector struct {
 	usedClients int
 }
 
+func addPortAndParse(originalAddress string) string {
+	port := "80" // set default port
+	// search where to put the port. some ips has complex paths like: http://user:password@1.1.1.1/path/more_path/etc...
+	// understand if there is anything after the ip. or its empty
+	urlSplitted := strings.Split(originalAddress, `.`)                                                         // split dots
+	lastIpAddressPart := urlSplitted[len(urlSplitted)-1]                                                       // get last dot and path
+	lastPartPaths := strings.SplitN(lastIpAddressPart, "/", 2)                                                 // split paths and last ip number
+	lastPartPaths[0] = strings.Replace(lastPartPaths[0], lastPartPaths[0], (lastPartPaths[0] + ":" + port), 1) // replace last ip number with ip + port
+	finalURL := strings.Join(urlSplitted[0:len(urlSplitted)-1], `.`) + `.` + strings.Join(lastPartPaths, "/")  // join all parts
+	println("FINAL URL:", finalURL)
+	return finalURL
+}
+
 func getClient(ctx context.Context, addr string) (Client, error) {
+	log.Println("getting Client Address:", addr)
 	u, err := url.Parse(addr)
 	if err != nil {
 		return nil, err
 	}
+
+	if u.Port() == "" {
+		// we need to add a default port 80.
+		addr = addPortAndParse(addr)
+	}
+
 	switch u.Scheme {
 	case "http", "https":
+		log.Println("Http Chosen")
 		c, err := client.New(addr)
 		if err != nil {
 			return nil, err
@@ -46,11 +68,17 @@ func getClient(ctx context.Context, addr string) (Client, error) {
 		return &clients.HTTPClient{Client: c}, nil
 		// TODO support URI client from address.
 	case "ws", "wss":
-		c, err := client.NewWS(addr, "") // might need to change websocket
+		log.Println("WS chosen")
+		c, err := client.NewWS(addr, "")
 		if err != nil {
 			return nil, err
 		}
-		return &clients.WebSocketClient{WSClient: c}, nil
+		wsc := &clients.WebSocketClient{WSClient: c}
+		wsc.Dialer, err = wsc.CreateDailer(addr)
+		if err != nil {
+			return nil, err
+		}
+		return wsc, nil
 	case "stdio":
 		return nil, fmt.Errorf("unsupported scheme: %q", u.Scheme)
 	case "":
@@ -62,6 +90,7 @@ func getClient(ctx context.Context, addr string) (Client, error) {
 }
 
 func NewConnector(ctx context.Context, nConns uint, addr string) *Connector {
+	log.Println("Creating New Connector")
 	connector := &Connector{
 		freeClients: make([]Client, 0, nConns),
 	}
@@ -74,8 +103,10 @@ func NewConnector(ctx context.Context, nConns uint, addr string) *Connector {
 				connector.Close()
 				return nil
 			}
+			log.Println("A new client")
 			nctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
 			rpcClient, err = getClient(nctx, addr)
+			log.Println("client created: ", rpcClient.ClientType())
 			if err != nil {
 				log.Println("retrying", err)
 				cancel()
@@ -118,6 +149,7 @@ func (connector *Connector) Close() {
 }
 
 func (connector *Connector) GetRpc(block bool) (Client, error) {
+	log.Println("GetRpc ")
 	connector.lock.Lock()
 	defer connector.lock.Unlock()
 	countPrint := 0

@@ -739,7 +739,11 @@ func Server(
 	if err != nil {
 		log.Fatalln("error: GetChainProxy", err)
 	}
-	chainProxy.Start(ctx)
+	log.Println("Server Start")
+	err = chainProxy.Start(ctx)
+	if err != nil {
+		log.Fatalln("Error:", err)
+	}
 	g_chainProxy = chainProxy
 
 	if g_sentry.GetSpecComparesHashes() {
@@ -749,7 +753,10 @@ func Server(
 		if err != nil {
 			log.Fatalln("error sentry.Init", err)
 		}
-		chainSentry.Start(ctx)
+		err = chainProxy.Start(ctx)
+		if err != nil {
+			log.Fatalln("Error:", err)
+		}
 		g_chainSentry = chainSentry
 	}
 

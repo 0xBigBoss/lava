@@ -824,12 +824,13 @@ func (s *Sentry) AddExpectedPayment(expectedPay PaymentRequest) {
 func (s *Sentry) connectRawClient(ctx context.Context, addr string) (*pairingtypes.RelayerClient, error) {
 	connectCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
+	log.Println("grpc dial context")
 	conn, err := grpc.DialContext(connectCtx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		return nil, err
 	}
 	/*defer conn.Close()*/
-
+	log.Println("new relayer client")
 	c := pairingtypes.NewRelayerClient(conn)
 	return &c, nil
 }
@@ -871,7 +872,7 @@ func (s *Sentry) specificPairing(ctx context.Context, address string) (*RelayerC
 }
 
 func (s *Sentry) _findPairing(ctx context.Context) (*RelayerClientWrapper, int, error) {
-
+	log.Println("finding pairing")
 	s.pairingMu.RLock()
 
 	defer s.pairingMu.RUnlock()
@@ -882,6 +883,7 @@ func (s *Sentry) _findPairing(ctx context.Context) (*RelayerClientWrapper, int, 
 	//
 	maxAttempts := len(s.pairing) * MaxConsecutiveConnectionAttemts
 	for attempts := 0; attempts <= maxAttempts; attempts++ {
+		log.Println("attemps", attempts)
 		if len(s.pairing) == 0 {
 			return nil, -1, fmt.Errorf("pairing list is empty")
 		}
@@ -891,7 +893,7 @@ func (s *Sentry) _findPairing(ctx context.Context) (*RelayerClientWrapper, int, 
 
 		if wrap.Client == nil {
 			wrap.SessionsLock.Lock()
-
+			log.Println("connect raw client")
 			conn, err := s.connectRawClient(ctx, wrap.Addr)
 			if err != nil {
 				wrap.ConnectionRefusals++
@@ -1102,10 +1104,12 @@ func (s *Sentry) SendRelay(
 ) (*pairingtypes.RelayReply, error) {
 	//
 	// Get pairing
+	log.Println("sending relay in sentry")
 	wrap, index, err := s._findPairing(ctx)
 	if err != nil {
 		return nil, err
 	}
+	log.Println("found pairing")
 
 	//
 	getClientSessionFromWrap := func(wrap *RelayerClientWrapper) *ClientSession {
@@ -1133,10 +1137,12 @@ func (s *Sentry) SendRelay(
 		return clientSession
 	}
 	// Get or create session and lock it
+	log.Println("getting client session")
 	clientSession := getClientSessionFromWrap(wrap)
-
 	// call user
+	log.Println("sending relay cb")
 	reply, request, err := cb_send_relay(clientSession)
+	log.Println("got relay gpt request")
 	//error using this provider
 	if err != nil {
 		if clientSession.QoSInfo.ConsecutiveTimeOut >= MaxConsecutiveConnectionAttemts && clientSession.QoSInfo.LastQoSReport.Availability.IsZero() {

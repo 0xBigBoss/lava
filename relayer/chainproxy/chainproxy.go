@@ -3,6 +3,7 @@ package chainproxy
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/btcsuite/btcd/btcec"
@@ -91,24 +92,27 @@ func SendRelay(
 	req string,
 	connectionType string,
 ) (*pairingtypes.RelayReply, error) {
-
+	log.Println("Send Relay Started")
 	//
 	// Unmarshal request
 	nodeMsg, err := cp.ParseMsg(url, []byte(req), connectionType)
+	log.Println("message parsed")
 	if err != nil {
 		return nil, err
 	}
+	log.Println("message parsed successfuly")
 	blockHeight := int64(-1) //to sync reliability blockHeight in case it changes
 	requestedBlock := int64(0)
 	callback_send_relay := func(clientSession *sentry.ClientSession) (*pairingtypes.RelayReply, *pairingtypes.RelayRequest, error) {
 		//client session is locked here
 		err := CheckComputeUnits(clientSession, nodeMsg.GetServiceApi().ComputeUnits)
-
+		log.Println("checked cu")
 		if err != nil {
 			return nil, nil, err
 		}
 
 		blockHeight = cp.GetSentry().GetBlockHeight()
+		log.Println("got BH:", blockHeight)
 		relayRequest := &pairingtypes.RelayRequest{
 			Provider:        clientSession.Client.Acc,
 			ConnectionType:  connectionType,
@@ -123,7 +127,7 @@ func SendRelay(
 			QoSReport:       clientSession.QoSInfo.LastQoSReport,
 			DataReliability: nil,
 		}
-
+		log.Println("signed Relay")
 		sig, err := sigs.SignRelay(privKey, *relayRequest)
 		if err != nil {
 			return nil, nil, err
@@ -135,9 +139,9 @@ func SendRelay(
 		clientSession.QoSInfo.TotalRelays++
 		connectCtx, cancel := context.WithTimeout(ctx, DefaultTimeout)
 		defer cancel()
-
+		log.Println("sending relay")
 		reply, err := c.Relay(connectCtx, relayRequest)
-
+		log.Println("sent relay")
 		if err != nil {
 			if err.Error() == context.DeadlineExceeded.Error() {
 				clientSession.QoSInfo.ConsecutiveTimeOut++
