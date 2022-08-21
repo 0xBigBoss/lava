@@ -14,11 +14,10 @@ import (
 var mockFolder string = "testutil/e2e/proxy/mockMaps/"
 
 var responsesChanged bool = false
-var total int = 0
+var total uint = 0
 var realCount int = 0
 var cacheCount int = 0
 var fakeCount int = 0
-var intercepted int = 0
 
 var fakeResponse bool = false
 
@@ -39,7 +38,7 @@ type proxyProcess struct {
 	strict       bool
 	noSave       bool
 	latency      uint
-	availability float64
+	availability uint
 }
 
 type jsonStruct struct {
@@ -70,17 +69,17 @@ func main() {
 		"(from default [host].json unless -alt was set)\nUsage Example:\n	$ go run proxy.go http://google.com/ -cache")
 	alt := flag.String("alt", "", "ALT (optional) [JSONFILE] - This will make proxy return from alternative cache file if possible"+
 		"\nUsage Example:\n	$ go run proxy.go http://google.com/ -cache -alt ./mockMaps/google_alt.json		# respond from google_alt.json")
-	latency := flag.Uint("latency", 0, "min latency of the proxy answer")
-	availability := flag.Float64("availability", 100, "availability in /%/ of the proxy answer")
+	latency := flag.Uint("l", 0, "min latency of the proxy answer")
+	availability := flag.Uint("a", 100, "availability, every x messages will be intercepted")
 	strict := flag.Bool("strict", false, "STRICT (optional) - This will make proxy return ONLY from cache, no external calls")
 	help := flag.Bool("h", false, "Shows this help message")
 	noSave := flag.Bool("no-save", false, "NO-SAVE (optional) will not store any data from proxy")
 
 	flag.Parse()
 	if *help || (*host == "" && flag.NArg() == 0) {
-		fmt.Println("\ngo run proxy.go [host] -p [port] OPTIONAL -cache -alt [JSONFILE] -strict\n")
+		fmt.Println("\ngo run proxy.go [host] -p [port] OPTIONAL -cache -alt [JSONFILE] -strict")
 		fmt.Println("	Usage Example:")
-		fmt.Println("	$ go run proxy.go -host google.com/ -p 1111 -cache \n")
+		fmt.Println("	$ go run proxy.go -host google.com/ -p 1111 -cache")
 		flag.Usage()
 	} else if *host == "" {
 		if len(os.Args) > 0 {
@@ -94,7 +93,6 @@ func main() {
 	}
 	println()
 
-	fmt.Printf("YAROM !!!!!!!!!!! LATENCY IS %d", *latency)
 	domain := getDomain(*host)
 	if *id != "" {
 		domain = *id
@@ -234,9 +232,7 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 	// Check if asking for blockNumber
 	if fakeResponse && strings.Contains(rawBodyS, "blockNumber") {
 		println("!!!!!!!!!!!!!! block number")
-		rw.WriteHeader(200)
-		rw.Write([]byte(fmt.Sprintf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"%s\"}", getMockBlockNumber())))
-
+		p.returnResponse(rw, 200, []byte(fmt.Sprintf("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"%s\"}", getMockBlockNumber())))
 	} else {
 		// Return Cached data if found in history and fromCache is set on
 		jStruct := &jsonStruct{}
@@ -316,7 +312,6 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 					}
 
 				}
-
 				// Change Response
 				if fakeResponse {
 					// respBody = []byte("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0xe000000000000000000\"}")
@@ -340,19 +335,20 @@ func (p proxyProcess) LavaTestProxy(rw http.ResponseWriter, req *http.Request) {
 		if current != nil {
 			id = current.id + ":" + current.port
 		}
-		fmt.Println("_________________________________", realCount, "/", cacheCount, ": proxy sent (new/from cache)", id, "\n")
+		fmt.Println("_________________________________", realCount, "/", cacheCount, ":proxy sent (new/from cache)", id)
 	}
 }
 
 func (p proxyProcess) returnResponse(rw http.ResponseWriter, status int, body []byte) {
 	time.Sleep(time.Duration(p.latency) * time.Millisecond)
 
-	if float64(intercepted)/float64(total) > (1 - p.availability) {
+	total++
+	if total%p.availability != 0 {
+		fmt.Printf("Return Response sent %s %d\n", time.Now().String(), total)
 		rw.WriteHeader(status)
 		rw.Write(body)
 	} else {
-		intercepted++
+		fmt.Printf("Return Response intercepted %s %d\n", time.Now().String(), total)
 	}
 
-	total++
 }

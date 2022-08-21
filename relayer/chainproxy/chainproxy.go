@@ -140,9 +140,7 @@ func SendRelay(
 		reply, err := c.Relay(connectCtx, relayRequest)
 
 		if err != nil {
-			if err.Error() == context.DeadlineExceeded.Error() {
-				clientSession.QoSInfo.ConsecutiveTimeOut++
-			}
+			clientSession.QoSInfo.ConsecutiveTimeOut++
 			return nil, nil, err
 		}
 		currentLatency := time.Since(relaySentTime)

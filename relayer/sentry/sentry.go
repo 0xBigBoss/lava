@@ -79,7 +79,7 @@ func (vp *VoteParams) GetCloseVote() bool {
 
 var AvailabilityPercentage sdk.Dec = sdk.NewDecWithPrec(5, 2) //TODO move to params pairing
 const (
-	MaxConsecutiveConnectionAttemts = 3
+	MaxConsecutiveConnectionAttemts = 2
 	PercentileToCalculateLatency    = 0.9
 	MinProvidersForSync             = 0.6
 	LatencyThresholdStatic          = 1 * time.Second
@@ -860,7 +860,7 @@ func (s *Sentry) AddExpectedPayment(expectedPay PaymentRequest) {
 }
 
 func (s *Sentry) connectRawClient(ctx context.Context, addr string) (*pairingtypes.RelayerClient, error) {
-	connectCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	connectCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	conn, err := grpc.DialContext(connectCtx, addr, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -1166,6 +1166,7 @@ func (s *Sentry) SendRelay(
 		if clientSession.QoSInfo.ConsecutiveTimeOut >= MaxConsecutiveConnectionAttemts && clientSession.QoSInfo.LastQoSReport.Availability.IsZero() {
 			s.movePairingEntryToPurge(wrap, index)
 		}
+		clientSession.Lock.Unlock()
 		return reply, err
 	}
 
@@ -1243,7 +1244,7 @@ func (s *Sentry) SendRelay(
 							clientSession = getClientSessionFromWrap(wrap)
 							relay_rep, relay_req, err := cb_send_reliability(clientSession, dataReliability)
 							if err != nil {
-								if clientSession.QoSInfo.ConsecutiveTimeOut >= 3 && clientSession.QoSInfo.LastQoSReport.Availability.IsZero() {
+								if clientSession.QoSInfo.ConsecutiveTimeOut >= MaxConsecutiveConnectionAttemts && clientSession.QoSInfo.LastQoSReport.Availability.IsZero() {
 									s.movePairingEntryToPurge(wrap, index)
 								}
 								return nil, nil, utils.LavaFormatError("sendReliabilityRelay Could not get reply to reliability relay from provider", err, &map[string]string{"Address": address})
