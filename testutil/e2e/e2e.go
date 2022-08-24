@@ -85,10 +85,13 @@ func awaitState(state State) {
 
 }
 
-func await(state State, id string, f func(string) TestResult, msg string) {
+func await(state State, id string, f func(string, []interface{}) TestResult, params []interface{}, msg string, start bool) {
 	done, pass := false, false
-	state.awaiting[id] = Await{&done, &pass, f, msg}
-	awaitState(state)
+	state.awaiting[id] = Await{&done, &pass, f, params, msg}
+	fmt.Println("Added wait for ", id)
+	if start {
+		awaitState(state)
+	}
 }
 
 func getExpectedEvents(states []State) []string {
@@ -179,9 +182,10 @@ func processLog(line string, state State, t *testing.T) {
 	for key, await := range state.awaiting {
 		if foundAwating {
 			continue
-		} else if testRes := await.f(line); testRes.found {
+		} else if testRes := await.f(line, await.params); testRes.found {
 			*state.awaiting[key].done = true
 			*state.awaiting[key].pass = testRes.passed
+			results[testRes.eventID] = append(results[testRes.eventID], &testRes)
 			foundAwating = true
 			if testRes.failNow {
 				println("1111111111111111")
@@ -412,17 +416,14 @@ func wrapGoTest(t *testing.T, finalresults []*TestResult, err error) {
 	}
 	for _, res := range finalresults {
 		end := res.line
-		if res.err != nil {
-			if !res.passed {
-				t.Errorf(res.err.Error())
-			}
-			end = res.err.Error() + " :  " + res.line
-		}
+
 		if res.passed {
 			t.Log(" ::: PASSED ::: " + res.parent + " ::: " + res.eventID + " ::: " + end)
 		} else {
-			t.Log(" ::: FAILED ::: " + res.parent + " ::: " + res.eventID + " ::: " + end)
-			t.Fail()
+			if res.err != nil {
+				end = res.err.Error() + " :  " + res.line
+			}
+			t.Errorf(" ::: FAILED ::: " + res.parent + " ::: " + res.eventID + " ::: " + end)
 		}
 	}
 }

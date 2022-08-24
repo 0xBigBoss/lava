@@ -17,7 +17,7 @@ func simple_events() map[string](func(LogLine) TestResult) {
 	return tests
 }
 
-func nice_check(line string) TestResult {
+func nice_check(line string, params []interface{}) TestResult {
 	return test_basic(line, "NICE")
 }
 
@@ -31,7 +31,7 @@ func SimpleTest(t *testing.T) ([]*TestResult, error) {
 	prepTest(t)
 
 	simple := TestProcess("simple", "go run "+homepath+"testutil/e2e/simple/simple.go ", simpleTest)
-	await(simple, "nice!", nice_check, "awaiting for NICE to proceed...")
+	await(simple, "nice!", nice_check, nil, "awaiting for NICE to proceed...", true)
 
 	println("::::::::::::::::::::::::::::::::::::::::::::::")
 	println("::::::::::::::::::::::::::::::::::::::::::::::")

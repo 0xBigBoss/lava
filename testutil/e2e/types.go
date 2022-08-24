@@ -48,10 +48,11 @@ type State struct {
 }
 
 type Await struct {
-	done *bool                   `json:"done"`
-	pass *bool                   `json:"pass"`
-	f    func(string) TestResult `json:"f"`
-	msg  string                  `json:"msg"`
+	done   *bool                                  `json:"done"`
+	pass   *bool                                  `json:"pass"`
+	f      func(string, []interface{}) TestResult `json:"f"`
+	params []interface{}
+	msg    string `json:"msg"`
 }
 
 type TestProc struct {
