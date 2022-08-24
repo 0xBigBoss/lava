@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -126,4 +127,27 @@ func ExitLavaProcess() {
 		fmt.Println(fmt.Errorf(err.Error()).Error())
 	}
 	fmt.Printf(" ::: Exiting Lava Process ::: %s\n", stdoutStderr)
+}
+
+func readEnvVars() {
+	file, err := os.Open(homepath + "scripts/vars/variables.sh")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	// optionally, resize scanner's capacity for lines over 64K, see next example
+	for scanner.Scan() {
+		text := scanner.Text()
+		if text[0] == '#' {
+			continue
+		}
+		split := strings.Split(text, "=")
+		os.Setenv(split[0], split[1])
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	}
 }

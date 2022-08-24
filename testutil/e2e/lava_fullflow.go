@@ -2,8 +2,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
 	"testing"
+
+	"github.com/lavanet/lava/testutil/e2e/proxy"
 )
 
 var nodeTest = TestProc{
@@ -33,6 +37,7 @@ var clientTest = TestProc{
 	strict:           true}
 
 func FullFlowTest(t *testing.T) ([]*TestResult, error) {
+	readEnvVars()
 	prepTest(t)
 
 	// Test Configs
@@ -59,6 +64,36 @@ func FullFlowTest(t *testing.T) ([]*TestResult, error) {
 	}
 
 	if run_providers_osmosis {
+		MOCK_PORT_REST := int64(2031)
+		rpcProxyProcessRest := proxy.NewProxy(
+			"osmosis_rest",
+			MOCK_PORT_REST,
+			os.Getenv("OSMO_HOST"),
+			proxy.GetMockFilePath("osmosis_rest", ""),
+			false,
+			true,
+			true,
+			false,
+			0,
+			1000,
+		)
+		srv1 := proxy.StartProxy(rpcProxyProcessRest) // start
+
+		MOCK_PORT_TM := int64(2041)
+		rpcProxyProcessRpc := proxy.NewProxy(
+			"osmosis_rpc",
+			MOCK_PORT_TM,
+			os.Getenv("OSMO_HOST"),
+			proxy.GetMockFilePath("osmosis_rpc", ""),
+			false,
+			true,
+			true,
+			false,
+			0,
+			1000,
+		)
+		srv2 := proxy.StartProxy(rpcProxyProcessRpc) // start
+
 		fmt.Println(" ::: Starting Providers Processes [OSMOSIS] ::: ")
 		prov_osm := TestProcess("providers_osmosis", homepath+"scripts/osmosis.sh", providersTest)
 		// debugOn(prov_osm)
@@ -78,6 +113,8 @@ func FullFlowTest(t *testing.T) ([]*TestResult, error) {
 			silent(clientOsmoRest)
 			silent(prov_osm)
 		}
+		srv1.Shutdown(context.Background())
+		srv2.Shutdown(context.Background())
 	}
 	if run_providers_eth {
 		fmt.Println(" ::: Starting Providers Processes [ETH] ::: ")
@@ -110,8 +147,4 @@ func FullFlowTest(t *testing.T) ([]*TestResult, error) {
 	final := finalizeResults(t)
 
 	return final, nil
-}
-
-func main() {
-	FullFlowTest(nil)
 }
