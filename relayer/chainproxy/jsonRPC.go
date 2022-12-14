@@ -266,7 +266,6 @@ func (cp *JrpcChainProxy) PortalStart(ctx context.Context, privKey *btcec.Privat
 
 	app.Use("/ws/:dappId", func(c *fiber.Ctx) error {
 		cp.portalLogs.LogStartTransaction("jsonRpc-WebSocket")
-
 		// IsWebSocketUpgrade returns true if the client
 		// requested upgrade to the WebSocket protocol.
 		if websocket.IsWebSocketUpgrade(c) {
@@ -350,6 +349,8 @@ func (cp *JrpcChainProxy) PortalStart(ctx context.Context, privKey *btcec.Privat
 
 	app.Post("/:dappId/*", func(c *fiber.Ctx) error {
 		cp.portalLogs.LogStartTransaction("jsonRpc-http post")
+		cp.portalLogs.Analytics.importFromFiberCtx(c)
+
 		msgSeed := strconv.Itoa(rand.Intn(10000000000))
 		dappID := ExtractDappIDFromFiberContext(c)
 		utils.LavaFormatInfo("in <<<", &map[string]string{"seed": msgSeed, "msg": string(c.Body()), "dappID": dappID})
