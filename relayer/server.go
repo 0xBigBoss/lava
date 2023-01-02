@@ -68,6 +68,17 @@ var (
 	g_askForRewards_mutex   sync.Mutex
 )
 
+// testing: inject delay/error to relay response
+const (
+	TEST_FREQUENCY = time.Second * 5
+	TEST_DURATION  = time.Millisecond * 500
+)
+var (
+	g_test_frequency time.Duration = TEST_FREQUENCY
+	g_test_duration  time.Duration = TEST_DURATION
+	g_test_timestamp time.Time
+)
+
 type UserSessionsEpochData struct {
 	UsedComputeUnits uint64
 	MaxComputeUnits  uint64
@@ -771,6 +782,10 @@ func (s *relayServer) Relay(ctx context.Context, request *pairingtypes.RelayRequ
 }
 
 func (s *relayServer) TryRelay(ctx context.Context, request *pairingtypes.RelayRequest, userAddr sdk.AccAddress, nodeMsg chainproxy.NodeMessage) (*pairingtypes.RelayReply, error) {
+	// testing: maybe delay/inject error
+	if err := testAddDelayOrError(); err != nil {
+		return nil, utils.LavaFormatError("Testing inject delay/error", err, nil)
+	}
 	// Send
 	var reqMsg *chainproxy.JsonrpcMessage
 	var reqParams interface{}
@@ -934,6 +949,11 @@ func (s *relayServer) TryRelaySubscribe(request *pairingtypes.RelayRequest, srv 
 					delete(userSessions.Subs, subscriptionID)
 				}
 				userSessions.Lock.Unlock()
+				return err
+			}
+
+			// testing: maybe delay/inject error
+			if err := testAddDelayOrError(); err != nil {
 				return err
 			}
 
@@ -1268,4 +1288,20 @@ func Server(
 	}
 	// in case we stop serving, claim rewards
 	askForRewards(int64(g_sentry.GetCurrentEpochHeight()))
+}
+
+func testAddDelayOrError() error {
+	if g_test_frequency == 0 {
+		return nil
+	}
+	if now := time.Now(); now.After(g_test_timestamp) {
+		g_test_timestamp = now.Add(g_test_frequency)
+		utils.LavaFormatInfo("Server testing", &map[string]string{"Inject delay": g_test_duration.String()})
+		time.Sleep(g_test_duration)
+		if g_test_duration > time.Minute {
+			utils.LavaFormatInfo("Server testing inject no response", nil)
+			return fmt.Errorf("testing: inject no (timely) response error")
+		}
+	}
+	return nil
 }
